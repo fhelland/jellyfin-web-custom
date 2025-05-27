@@ -286,7 +286,9 @@ function supportedDolbyVisionProfilesHevc(videoTestElement) {
 
 function supportedDolbyVisionProfileAv1(videoTestElement) {
     // Profile 10 4k@24fps
-    return videoTestElement.canPlayType?.('video/mp4; codecs="dav1.10.06"').replace(/no/, '');
+    return videoTestElement.canPlayType?.('video/mp4; codecs="dav1.10.06"').replace(/no/, '')
+            // LG TVs with at least web0s 5 should support profile 10, but they don't report it.
+            || browser.web0sVersion >= 5;
 }
 
 function getDirectPlayProfileForVideoContainer(container, videoAudioCodecs, videoTestElement, options) {
@@ -645,7 +647,7 @@ export default function (options) {
     const hlsInFmp4VideoCodecs = [];
 
     if (canPlayAv1(videoTestElement)
-        && (browser.safari || (!browser.mobile && (browser.edgeChromium || browser.firefox || browser.chrome || browser.opera)))) {
+        && (browser.safari || browser.web0s || (!browser.mobile && (browser.edgeChromium || browser.firefox || browser.chrome || browser.opera)))) {
         // disable av1 on non-safari mobile browsers since it can be very slow software decoding
         hlsInFmp4VideoCodecs.push('av1');
     }
@@ -1465,6 +1467,21 @@ export default function (options) {
                     Condition: 'EqualsAny',
                     Property: 'VideoRangeType',
                     Value: hevcVideoRangeTypes.split('|').filter((v) => !v.startsWith('DOVI')).join('|'),
+                    IsRequired: false
+                }
+            ]
+        });
+
+        // Disallow direct playing of profile 10 DOVI media in containers not mp4.
+        profile.CodecProfiles.push({
+            Type: 'Video',
+            Container: '-mp4',
+            Codec: 'av1',
+            Conditions: [
+                {
+                    Condition: 'EqualsAny',
+                    Property: 'VideoRangeType',
+                    Value: av1VideoRangeTypes.split('|').filter((v) => !v.startsWith('DOVI')).join('|'),
                     IsRequired: false
                 }
             ]
