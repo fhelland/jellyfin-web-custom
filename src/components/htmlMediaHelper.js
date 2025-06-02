@@ -161,6 +161,40 @@ export function seekOnPlaybackStart(instance, element, ticks, onMediaReady) {
     }
 }
 
+// Resumes media on web0s without reloading the media file from the start.
+// https://webostv.developer.lge.com/develop/guides/resuming-media-with-mediaoption
+function setMediaOption(element, url, options) {
+    const startPosition = (options.playerStartPositionTicks || 0) / 10000;
+    if (!startPosition || options.mediaType === 'Audio') {
+        return false;
+    }
+
+    // application/x-mpegURL and m3u8 container will start HLS player.
+    let mimeType = 'video/mp4';
+    if (options.mediaSource?.TranscodingSubProtocol?.toUpperCase() === 'HLS'
+        || options.mimeType === 'application/x-mpegURL') {
+        mimeType = 'application/x-mpegURL';
+    }
+
+    const mediaOptions = {
+        option: {
+            transmission: {
+                playTime: {
+                    start: startPosition
+                }
+            }
+        }
+    };
+    let mediaOption = encodeURIComponent(JSON.stringify(mediaOptions));
+
+    const source = document.createElement('source');
+    source.src = url;
+    source.type = `${mimeType};mediaOption=${mediaOption}`;
+    element.appendChild(source);
+
+    return true;
+}
+
 export function applySrc(elem, src, options) {
     if (window.Windows && options.mediaSource?.IsLocal) {
         return Windows.Storage.StorageFile.getFileFromPathAsync(options.url).then(function (file) {
@@ -172,9 +206,14 @@ export function applySrc(elem, src, options) {
             elem.src = URL.createObjectURL(playlist, { oneTimeOnly: true });
             return Promise.resolve();
         });
-    } else {
-        elem.src = src;
     }
+    if (browser.web0s) {
+        const isMediaOptionSet = setMediaOption(elem, src, options);
+        if (isMediaOptionSet) {
+            return Promise.resolve();
+        }
+    }
+    elem.src = src;
 
     return Promise.resolve();
 }
