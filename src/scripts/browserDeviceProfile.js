@@ -294,9 +294,9 @@ function supportedDolbyVisionProfilesHevc(videoTestElement) {
 
 function supportedDolbyVisionProfileAv1(videoTestElement) {
     // Profile 10 4k@24fps
-    return videoTestElement.canPlayType?.('video/mp4; codecs="dav1.10.06"').replace(/no/, '')
-            // LG TVs with at least web0s 5 should support profile 10, but they don't report it.
-            || browser.web0sVersion >= 5;
+    return !!((videoTestElement.canPlayType?.('video/mp4; codecs="dav1.10.06"') || '').replace(/no/, ''))
+        // WebOS 23 or newer should support profile 10, but they don't report it.
+        || browser.web0sVersion >= 23;
 }
 
 function getDirectPlayProfileForVideoContainer(container, videoAudioCodecs, videoTestElement, options) {

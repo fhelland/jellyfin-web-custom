@@ -169,36 +169,26 @@ export function seekOnPlaybackStart(instance, element, ticks, onMediaReady) {
 
 // Resumes media on web0s without reloading the media file from the start.
 // https://webostv.developer.lge.com/develop/guides/resuming-media-with-mediaoption
-function setMediaOption(element, url, options) {
-    const startPosition = (options.playerStartPositionTicks || 0) / 10000;
-    if (!startPosition || options.mediaType === 'Audio') {
-        return false;
+export function setMediaOption(options = {}) {
+    // Start position in milliseconds, no fractionals parts is allowed
+    const startPositionMs = parseInt((options.playerStartPositionTicks || 0) / 10000, 10);
+
+    if (!startPositionMs) {
+        return null;
     }
 
-    // application/x-mpegURL and m3u8 container will start HLS player.
-    let mimeType = 'video/mp4';
-    if (options.mediaSource?.TranscodingSubProtocol?.toUpperCase() === 'HLS'
-        || options.mimeType === 'application/x-mpegURL') {
+    const hls = isHls(options.mediaSource);
+
+    let mimeType;
+    if (hls) {
         mimeType = 'application/x-mpegURL';
+    } else {
+        mimeType = options.mediaType === 'Audio' ? 'audio/mp4' : 'video/mp4';
     }
 
-    const mediaOptions = {
-        option: {
-            transmission: {
-                playTime: {
-                    start: startPosition
-                }
-            }
-        }
-    };
-    let mediaOption = encodeURIComponent(JSON.stringify(mediaOptions));
+    const mediaOption = { option: { transmission: { playTime: { start: startPositionMs } } } };
 
-    const source = document.createElement('source');
-    source.src = url;
-    source.type = `${mimeType};mediaOption=${mediaOption}`;
-    element.appendChild(source);
-
-    return true;
+    return `${mimeType};mediaOption=${encodeURIComponent(JSON.stringify(mediaOption))}`;
 }
 
 export function applySrc(elem, src, options) {
@@ -214,8 +204,17 @@ export function applySrc(elem, src, options) {
         });
     }
     if (browser.web0s) {
-        const isMediaOptionSet = setMediaOption(elem, src, options);
-        if (isMediaOptionSet) {
+        // webOs specific media option to resume playback more efficiently
+        // Require to use source element instead of src attribute
+        const isMediaOptionSet = setMediaOption(options);
+        if (web0sMediaOption?.length > 0) {
+            const source = document.createElement('source');
+            source.src = src;
+            source.type = web0sMediaOption;
+
+            while (elem.firstChild) elem.removeChild(elem.firstChild);
+            elem.appendChild(source);
+
             return Promise.resolve();
         }
     }
@@ -228,6 +227,7 @@ export function resetSrc(elem) {
     elem.src = '';
     elem.innerHTML = '';
     elem.removeAttribute('src');
+    while (elem.firstChild) elem.removeChild(elem.firstChild); // remove source elements
 }
 
 function onSuccessfulPlay(elem, onErrorFn) {

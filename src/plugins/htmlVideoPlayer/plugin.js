@@ -1745,6 +1745,10 @@ export class HtmlVideoPlayer {
             }
 
             const videoElement = dlg.querySelector('video');
+            if (browser.web0s) {
+                // Signal readyState to allow changing source during playback in webOS
+                videoElement.load();
+            }
             if (options.backdropUrl) {
                 // update backdrop image
                 videoElement.poster = options.backdropUrl;
