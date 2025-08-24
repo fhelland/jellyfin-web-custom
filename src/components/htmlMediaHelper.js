@@ -2,6 +2,7 @@ import appSettings from '../scripts/settings/appSettings' ;
 import browser from '../scripts/browser';
 import Events from '../utils/events.ts';
 import { MediaError } from 'types/mediaError';
+import { isHls } from '../utils/mediaSource.ts';
 
 export function getSavedVolume() {
     return appSettings.get('volume') || 1;
@@ -177,10 +178,8 @@ export function setMediaOption(options = {}) {
         return null;
     }
 
-    const hls = isHls(options.mediaSource);
-
     let mimeType;
-    if (hls) {
+    if (isHls(options.mediaSource)) {
         mimeType = 'application/x-mpegURL';
     } else {
         mimeType = options.mediaType === 'Audio' ? 'audio/mp4' : 'video/mp4';
@@ -206,11 +205,11 @@ export function applySrc(elem, src, options) {
     if (browser.web0s) {
         // webOs specific media option to resume playback more efficiently
         // Require to use source element instead of src attribute
-        const isMediaOptionSet = setMediaOption(options);
-        if (web0sMediaOption?.length > 0) {
+        const type = setMediaOption(options);
+        if (type?.length > 0) {
             const source = document.createElement('source');
             source.src = src;
-            source.type = web0sMediaOption;
+            source.type = type;
 
             while (elem.firstChild) elem.removeChild(elem.firstChild);
             elem.appendChild(source);
